@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面风格样式稿 - 三审制工作台</title>
+    <style>
+        :root {
+            --brand-gold: #c7a24f;
+            --brand-green: #16a36a;
+            --brand-blue: #1f67d8;
+            --brand-red: #d14343;
+            --text-primary: #1f2a37;
+            --text-secondary: #5b6675;
+            --bg-page: #f5f7fa;
+            --bg-card: #ffffff;
+            --border: #e5eaf1;
+            --shadow: 0 6px 20px rgba(31, 42, 55, 0.06);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-page);
+            color: var(--text-primary);
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, var(--brand-blue), #2754b8);
+            color: #fff;
+            border-bottom: 3px solid var(--brand-gold);
+            padding: 14px 24px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .container {
+            width: min(1200px, calc(100vw - 32px));
+            margin: 20px auto 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+        }
+
+        .title {
+            margin: 0 0 12px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .sub {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .btn {
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-size: 14px;
+            padding: 9px 14px;
+            cursor: pointer;
+        }
+
+        .btn-primary { background: var(--brand-blue); color: #fff; }
+        .btn-success { background: var(--brand-green); color: #fff; }
+        .btn-danger  { background: var(--brand-red); color: #fff; }
+        .btn-secondary { background: #fff; color: var(--text-primary); border-color: var(--border); }
+
+        .btn:hover { filter: brightness(1.05); }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .b-draft { background: #eef3f8; color: #4b5563; }
+        .b-p1 { background: #e9f2ff; color: #1f67d8; }
+        .b-p2 { background: #e7f8f3; color: #0c8a61; }
+        .b-p3 { background: #f0ecff; color: #6c43d8; }
+        .b-rej { background: #fdecec; color: #c03434; }
+        .b-done { background: #e8f8ef; color: #168a5e; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            padding: 12px 10px;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        tr:hover td { background: #f3f7ff; }
+
+        .timeline-item {
+            border-left: 2px solid var(--border);
+            padding-left: 12px;
+            margin: 10px 0;
+        }
+
+        .timeline-item strong { color: var(--text-primary); }
+        .timeline-time { color: var(--text-secondary); font-size: 12px; }
+
+        .tips {
+            background: #fff8e7;
+            border: 1px solid #f1dfb0;
+            color: #7b5e20;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 980px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>三审制稿件工作台 · SFCCN风格样式稿</h1>
+    </div>
+
+    <div class="container grid">
+        <section class="card">
+            <h2 class="title">稿件列表（样式示例）</h2>
+            <div class="sub">设计原则：清晰、明朗、大气；突出状态识别与关键操作。</div>
+
+            <div class="toolbar">
+                <button class="btn btn-primary">新建稿件</button>
+                <button class="btn btn-secondary">筛选：待审核</button>
+                <button class="btn btn-secondary">刷新</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>制造业融资结构分析</td>
+                        <td><span class="badge b-p2">PENDING_2ND</span></td>
+                        <td>2026-04-24 15:30</td>
+                        <td>查看详情</td>
+                    </tr>
+                    <tr>
+                        <td>湾区产业周报</td>
+                        <td><span class="badge b-rej">REJECTED</span></td>
+                        <td>2026-04-24 13:10</td>
+                        <td>继续编辑</td>
+                    </tr>
+                    <tr>
+                        <td>宏观观察晨报</td>
+                        <td><span class="badge b-done">COMPLETED</span></td>
+                        <td>2026-04-23 18:45</td>
+                        <td>查看归档</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <aside class="card">
+            <h2 class="title">操作区（审核页示例）</h2>
+            <div class="sub">状态标签与按钮颜色统一映射业务语义。</div>
+
+            <div>
+                <span class="badge b-draft">DRAFT</span>
+                <span class="badge b-p1">PENDING_1ST</span>
+                <span class="badge b-p2">PENDING_2ND</span>
+                <span class="badge b-p3">PENDING_3RD</span>
+                <span class="badge b-rej">REJECTED</span>
+                <span class="badge b-done">COMPLETED</span>
+            </div>
+
+            <div class="toolbar" style="margin-top: 8px;">
+                <button class="btn btn-success">审核通过</button>
+                <button class="btn btn-danger">审核退回</button>
+                <button class="btn btn-primary">重新提交</button>
+            </div>
+
+            <div class="tips">退回操作必须填写意见；已完成状态仅允许查看。</div>
+        </aside>
+    </div>
+
+    <div class="container card">
+        <h2 class="title">审核流水（时间线样式）</h2>
+        <div class="timeline-item">
+            <strong>APPROVE</strong>：PENDING_1ST -> PENDING_2ND
+            <div class="timeline-time">2026-04-24 10:20:12</div>
+        </div>
+        <div class="timeline-item">
+            <strong>REJECT</strong>：PENDING_2ND -> REJECTED，意见：请补充数据来源
+            <div class="timeline-time">2026-04-24 11:05:43</div>
+        </div>
+        <div class="timeline-item">
+            <strong>RESUBMIT</strong>：REJECTED -> PENDING_1ST
+            <div class="timeline-time">2026-04-24 12:30:08</div>
+        </div>
+    </div>
+</body>
+</html>

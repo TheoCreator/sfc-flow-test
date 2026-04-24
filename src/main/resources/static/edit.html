@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>稿件编辑 - 三审制稿件工作台</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="topbar">
+    <h1>三审制稿件工作台</h1>
+</div>
+<div class="container">
+    <div class="workspace">
+        <aside class="card sidebar-menu">
+            <h3 class="menu-title">菜单</h3>
+            <nav class="menu-list">
+                <a class="menu-link" data-module="list" href="/list.html?module=list">稿件列表</a>
+                <a class="menu-link" data-module="my-approvals" href="/list.html?module=my-approvals">我的审批</a>
+                <a class="menu-link" data-module="completed" href="/list.html?module=completed">已完成稿件</a>
+            </nav>
+        </aside>
+
+        <div class="main-pane row">
+            <section class="card col-main">
+                <h2 class="title">稿件编辑</h2>
+                <p class="sub">支持标题/正文编辑、保存草稿、提交审核、退回后重新提交。</p>
+                <div id="msg"></div>
+
+                <label>标题</label>
+                <input id="title" maxlength="500" placeholder="请输入标题">
+
+                <label>正文</label>
+                <textarea id="body" placeholder="请输入正文"></textarea>
+            </section>
+
+            <aside class="card col-side">
+                <h3 class="title">操作区</h3>
+                <div id="statusWrap" class="sub">当前状态：新建稿件</div>
+                <div class="toolbar">
+                    <button class="btn btn-secondary" id="btnBack">返回列表</button>
+                    <button class="btn btn-primary" id="btnCreate">创建</button>
+                    <button class="btn btn-secondary" id="btnSaveDraft">保存草稿</button>
+                    <button class="btn btn-primary" id="btnSubmit">提交审核</button>
+                    <button class="btn btn-primary" id="btnResubmit">重新提交</button>
+                    <button class="btn btn-secondary" id="btnDetail">查看详情</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+<script src="/app.js"></script>
+<script>
+    const msg = qs("#msg");
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
+    const moduleKey = params.get("module") || "list";
+    let current = null;
+
+    function normalizeModule(value) {
+        return ["list", "my-approvals", "completed"].includes(value) ? value : "list";
+    }
+
+    const currentModule = normalizeModule(moduleKey);
+    qsa(".menu-link").forEach(link => {
+        link.classList.toggle("active", link.dataset.module === currentModule);
+    });
+
+    function editable(status) {
+        return status === "DRAFT" || status === "REJECTED";
+    }
+
+    function refreshButtons() {
+        const status = current ? current.status : null;
+        qs("#btnCreate").style.display = id ? "none" : "inline-block";
+        qs("#btnSaveDraft").style.display = id && editable(status) ? "inline-block" : "none";
+        qs("#btnSubmit").style.display = id && status === "DRAFT" ? "inline-block" : "none";
+        qs("#btnResubmit").style.display = id && status === "REJECTED" ? "inline-block" : "none";
+        qs("#btnDetail").style.display = id ? "inline-block" : "none";
+        const locked = id && !editable(status);
+        qs("#title").disabled = locked;
+        qs("#body").disabled = locked;
+    }
+
+    function fill(data) {
+        current = data;
+        qs("#title").value = data.title || "";
+        qs("#body").value = data.body || "";
+        qs("#statusWrap").innerHTML = `当前状态：${statusBadge(data.status)}`;
+        refreshButtons();
+    }
+
+    async function loadDetail() {
+        if (!id) {
+            refreshButtons();
+            await refreshMyApprovalBadgeCount();
+            return;
+        }
+        try {
+            const data = await api(`/api/v1/manuscripts/${id}`);
+            fill(data);
+            await refreshMyApprovalBadgeCount();
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    }
+
+    function payload() {
+        return {
+            title: qs("#title").value.trim(),
+            body: qs("#body").value.trim()
+        };
+    }
+
+    qs("#btnCreate").addEventListener("click", async () => {
+        try {
+            const body = payload();
+            const data = await api("/api/v1/manuscripts", {
+                method: "POST",
+                body: JSON.stringify(body)
+            });
+            showMessage(msg, true, "创建成功");
+            await refreshMyApprovalBadgeCount();
+            location.href = `/edit.html?id=${data.id}&module=${currentModule}`;
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    });
+
+    qs("#btnSaveDraft").addEventListener("click", async () => {
+        try {
+            const data = await api(`/api/v1/manuscripts/${id}/draft`, {
+                method: "PUT",
+                body: JSON.stringify(payload())
+            });
+            fill(data);
+            showMessage(msg, true, "保存成功");
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    });
+
+    qs("#btnSubmit").addEventListener("click", async () => {
+        try {
+            const data = await api(`/api/v1/manuscripts/${id}/submit`, {method: "POST"});
+            fill(data);
+            showMessage(msg, true, "提交审核成功");
+            await refreshMyApprovalBadgeCount();
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    });
+
+    qs("#btnResubmit").addEventListener("click", async () => {
+        try {
+            const data = await api(`/api/v1/manuscripts/${id}/resubmit`, {method: "POST"});
+            fill(data);
+            showMessage(msg, true, "重新提交成功");
+            await refreshMyApprovalBadgeCount();
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    });
+
+    qs("#btnBack").addEventListener("click", () => location.href = `/list.html?module=${currentModule}`);
+    qs("#btnDetail").addEventListener("click", () => location.href = `/detail.html?id=${id}&module=${currentModule}`);
+
+    loadDetail();
+</script>
+</body>
+</html>

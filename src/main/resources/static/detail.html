@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>详情审核 - 三审制稿件工作台</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="topbar">
+    <h1>三审制稿件工作台</h1>
+</div>
+<div class="container">
+    <div class="workspace">
+        <aside class="card sidebar-menu">
+            <h3 class="menu-title">菜单</h3>
+            <nav class="menu-list">
+                <a class="menu-link" data-module="list" href="/list.html?module=list">稿件列表</a>
+                <a class="menu-link" data-module="my-approvals" href="/list.html?module=my-approvals">我的审批</a>
+                <a class="menu-link" data-module="completed" href="/list.html?module=completed">已完成稿件</a>
+            </nav>
+        </aside>
+
+        <div class="main-pane row">
+            <section class="col-main">
+                <div class="card">
+                    <h2 id="title" class="title">稿件详情</h2>
+                    <p id="meta" class="sub"></p>
+                    <article id="bodyText" style="white-space: pre-wrap; line-height: 1.7;"></article>
+                </div>
+
+                <div class="card">
+                    <h3 class="title">审核流水</h3>
+                    <div id="records"></div>
+                </div>
+            </section>
+
+            <aside class="card col-side review-panel">
+                <div class="review-panel-head">
+                    <h3 class="title">审核操作</h3>
+                    <button class="btn btn-secondary" id="btnBack">返回列表</button>
+                </div>
+                <div id="msg"></div>
+                <div id="currentStatus" class="sub review-panel-body"></div>
+
+                <div class="review-panel-body" style="margin-top: auto;">
+                    <label>退回意见</label>
+                    <textarea id="opinion" class="opinion-box" placeholder="执行退回时必须填写意见"></textarea>
+                    <div class="review-actions">
+                        <button class="btn btn-secondary" id="btnEdit">去编辑</button>
+                        <button class="btn btn-success" id="btnApprove">审核通过</button>
+                        <button class="btn btn-danger" id="btnReject">审核退回</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+<script src="/app.js"></script>
+<script>
+    const id = new URLSearchParams(location.search).get("id");
+    const moduleKey = new URLSearchParams(location.search).get("module") || "my-approvals";
+    const msg = qs("#msg");
+    let detail = null;
+
+    function normalizeModule(value) {
+        return ["list", "my-approvals", "completed"].includes(value) ? value : "my-approvals";
+    }
+
+    const currentModule = normalizeModule(moduleKey);
+    qsa(".menu-link").forEach(link => {
+        link.classList.toggle("active", link.dataset.module === currentModule);
+    });
+
+    function refreshActions() {
+        const status = detail?.status;
+        const pending = status === "PENDING_1ST" || status === "PENDING_2ND" || status === "PENDING_3RD";
+        qs("#btnApprove").style.display = pending ? "inline-block" : "none";
+        qs("#btnReject").style.display = pending ? "inline-block" : "none";
+        qs("#opinion").style.display = pending ? "block" : "none";
+    }
+
+    async function loadDetail() {
+        detail = await api(`/api/v1/manuscripts/${id}`);
+        qs("#title").textContent = detail.title;
+        qs("#meta").innerHTML = `状态：${statusBadge(detail.status)} 更新时间：${fmtDate(detail.updatedAt)}`;
+        qs("#bodyText").textContent = detail.body;
+        qs("#currentStatus").innerHTML = `当前状态：${statusBadge(detail.status)}`;
+        refreshActions();
+    }
+
+    async function loadRecords() {
+        const records = await api(`/api/v1/manuscripts/${id}/records`);
+        qs("#records").innerHTML = records.map(item => `
+            <div class="timeline-item">
+                <strong>${item.action}</strong>：${item.fromStatus || "-"} -> ${item.toStatus || "-"}
+                <div>意见：${item.opinion || "-"}</div>
+                <div>退回关卡：${item.rejectLevel || "-"}</div>
+                <div class="sub">${fmtDate(item.createdAt)} / ${item.operatorName || "-"}</div>
+            </div>
+        `).join("");
+    }
+
+    async function loadAll() {
+        try {
+            await loadDetail();
+            await loadRecords();
+            await refreshMyApprovalBadgeCount();
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    }
+
+    qs("#btnApprove").addEventListener("click", async () => {
+        try {
+            await api(`/api/v1/manuscripts/${id}/approve`, {method: "POST"});
+            showMessage(msg, true, "审核通过成功");
+            await loadAll();
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    });
+
+    qs("#btnReject").addEventListener("click", async () => {
+        try {
+            const opinion = qs("#opinion").value.trim();
+            await api(`/api/v1/manuscripts/${id}/reject`, {
+                method: "POST",
+                body: JSON.stringify({opinion})
+            });
+            showMessage(msg, true, "退回成功");
+            qs("#opinion").value = "";
+            await loadAll();
+        } catch (e) {
+            showMessage(msg, false, e.message);
+        }
+    });
+
+    qs("#btnBack").addEventListener("click", () => location.href = `/list.html?module=${currentModule}`);
+    qs("#btnEdit").addEventListener("click", () => location.href = `/edit.html?id=${id}&module=${currentModule}`);
+
+    loadAll();
+</script>
+</body>
+</html>

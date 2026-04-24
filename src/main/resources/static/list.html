@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>稿件列表 - 三审制稿件工作台</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="topbar">
+    <h1>三审制稿件工作台</h1>
+</div>
+<div class="container">
+    <div class="workspace">
+        <aside class="card sidebar-menu">
+            <h3 class="menu-title">菜单</h3>
+            <nav class="menu-list">
+                <a class="menu-link" data-module="list" href="/list.html?module=list">稿件列表</a>
+                <a class="menu-link" data-module="my-approvals" href="/list.html?module=my-approvals">我的审批</a>
+                <a class="menu-link" data-module="completed" href="/list.html?module=completed">已完成稿件</a>
+            </nav>
+        </aside>
+
+        <section class="card main-pane">
+            <h2 class="title" id="pageTitle">稿件列表</h2>
+            <p class="sub" id="pageSub">展示标题、状态、更新时间，并支持进入编辑和审核详情。</p>
+            <div class="toolbar">
+                <button class="btn btn-primary" id="btnCreate">新建稿件</button>
+                <select id="statusFilter" style="width: 220px;">
+                    <option value="">全部状态</option>
+                    <option value="DRAFT">草稿</option>
+                    <option value="PENDING_1ST">待一审</option>
+                    <option value="PENDING_2ND">待二审</option>
+                    <option value="PENDING_3RD">待三审</option>
+                    <option value="REJECTED">已退回</option>
+                    <option value="COMPLETED">已完成</option>
+                </select>
+                <input id="keyword" style="width: 220px;" placeholder="搜索标题/正文关键词">
+                <select id="pageSize" style="width: 120px;">
+                    <option value="10">10条/页</option>
+                    <option value="20">20条/页</option>
+                    <option value="50">50条/页</option>
+                </select>
+                <button class="btn btn-secondary" id="btnQuery">筛选</button>
+                <span class="sub" id="moduleHint" style="margin: 0;"></span>
+            </div>
+            <div id="msg"></div>
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>标题</th>
+                    <th>状态</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+            </table>
+            <div class="toolbar" style="justify-content: flex-end; margin-top: 12px;">
+                <button class="btn btn-secondary" id="btnPrev">上一页</button>
+                <span class="sub" id="pageInfo" style="margin: 0;">第 1 页</span>
+                <button class="btn btn-secondary" id="btnNext">下一页</button>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/app.js"></script>
+<script>
+    const MODULE_CONFIG = {
+        list: {
+            title: "稿件列表",
+            sub: "展示标题、状态、更新时间，并支持进入编辑和审核详情。",
+            fixedStatuses: null
+        },
+        "my-approvals": {
+            title: "我的审批",
+            sub: "当前仅查询待审批稿件（待一审/待二审/待三审）。",
+            fixedStatuses: ["PENDING_1ST", "PENDING_2ND", "PENDING_3RD"]
+        },
+        completed: {
+            title: "已完成稿件",
+            sub: "查询已通过三审流程并归档完成的稿件。",
+            fixedStatuses: ["COMPLETED"]
+        }
+    };
+
+    const msg = qs("#msg");
+    const rows = qs("#rows");
+    const pageInfo = qs("#pageInfo");
+    let currentPage = 1;
+    let hasNextPage = false;
+    const moduleKey = new URLSearchParams(location.search).get("module") || "list";
+    const currentModule = MODULE_CONFIG[moduleKey] ? moduleKey : "list";
+
+    function applyModuleUI() {
+        const config = MODULE_CONFIG[currentModule];
+        qs("#pageTitle").textContent = config.title;
+        qs("#pageSub").textContent = config.sub;
+        qsa(".menu-link").forEach(link => {
+            link.classList.toggle("active", link.dataset.module === currentModule);
+        });
+        const hasFixedStatuses = Array.isArray(config.fixedStatuses);
+        qs("#statusFilter").style.display = hasFixedStatuses ? "none" : "inline-block";
+        qs("#btnQuery").textContent = hasFixedStatuses ? "查询" : "筛选";
+        qs("#moduleHint").textContent = hasFixedStatuses ? "当前模块为固定筛选" : "";
+    }
+
+    function buildListQuery() {
+        const config = MODULE_CONFIG[currentModule];
+        const keyword = qs("#keyword").value.trim();
+        const status = qs("#statusFilter").value;
+        const pageSize = qs("#pageSize").value;
+        const params = new URLSearchParams();
+        params.set("pageNo", String(currentPage));
+        params.set("pageSize", pageSize);
+        if (Array.isArray(config.fixedStatuses)) {
+            params.set("statuses", config.fixedStatuses.join(","));
+        } else if (status) {
+            params.set("status", status);
+        }
+        if (keyword) {
+            params.set("keyword", keyword);
+        }
+        return params.toString();
+    }
+
+    function buildCountQuery() {
+        const config = MODULE_CONFIG[currentModule];
+        const keyword = qs("#keyword").value.trim();
+        const status = qs("#statusFilter").value;
+        const params = new URLSearchParams();
+        if (Array.isArray(config.fixedStatuses)) {
+            params.set("statuses", config.fixedStatuses.join(","));
+        } else if (status) {
+            params.set("status", status);
+        }
+        if (keyword) {
+            params.set("keyword", keyword);
+        }
+        return params.toString();
+    }
+
+    function refreshPager(total, listLength) {
+        const pageSize = Number(qs("#pageSize").value);
+        const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+        hasNextPage = currentPage < totalPages;
+        pageInfo.textContent = `第 ${currentPage} 页 / 共 ${total} 条`;
+        qs("#btnPrev").disabled = currentPage <= 1;
+        qs("#btnNext").disabled = !hasNextPage;
+    }
+
+    async function loadList() {
+        try {
+            const query = buildListQuery();
+            const countQuery = buildCountQuery();
+            const listPromise = api(`/api/v1/manuscripts?${query}`);
+            const countPromise = countQuery
+                ? api(`/api/v1/manuscripts/count?${countQuery}`)
+                : api("/api/v1/manuscripts/count");
+            const [list, countVo] = await Promise.all([listPromise, countPromise]);
+            const total = countVo.total;
+            rows.innerHTML = list.map(item => `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.title}</td>
+                    <td>${statusBadge(item.status)}</td>
+                    <td>${fmtDate(item.updatedAt)}</td>
+                    <td>
+                        <div class="action-links">
+                            <a class="action-link" href="/edit.html?id=${item.id}&module=${currentModule}">编辑</a>
+                            <a class="action-link primary" href="/detail.html?id=${item.id}&module=${currentModule}">详情/审核</a>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+            refreshPager(total, list.length);
+            showMessage(msg, true, `本页 ${list.length} 条`);
+        } catch (e) {
+            showMessage(msg, false, e.message);
+            qs("#btnNext").disabled = true;
+        } finally {
+            await refreshMyApprovalBadgeCount();
+        }
+    }
+
+    qs("#btnCreate").addEventListener("click", () => {
+        location.href = `/edit.html?module=${currentModule}`;
+    });
+    qs("#btnQuery").addEventListener("click", async () => {
+        currentPage = 1;
+        await loadList();
+    });
+    qs("#btnPrev").addEventListener("click", async () => {
+        if (currentPage <= 1) {
+            return;
+        }
+        currentPage -= 1;
+        await loadList();
+    });
+    qs("#btnNext").addEventListener("click", async () => {
+        if (!hasNextPage) {
+            return;
+        }
+        currentPage += 1;
+        await loadList();
+    });
+    qs("#keyword").addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+            currentPage = 1;
+            await loadList();
+        }
+    });
+    qs("#pageSize").addEventListener("change", async () => {
+        currentPage = 1;
+        await loadList();
+    });
+
+    applyModuleUI();
+    loadList();
+</script>
+</body>
+</html>

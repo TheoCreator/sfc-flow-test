@@ -1,0 +1,50 @@
+# 公共配置；环境差异见 application-dev.yml / application-prod.yml
+# 默认激活 dev；生产启动时加：--spring.profiles.active=prod
+
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: sfc-flow-test
+  profiles:
+    active: dev
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    defaults:
+      enabled: true
+  info:
+    env:
+      enabled: true
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.sfc.flowtest
+
+info:
+  app:
+    name: ${spring.application.name}
+
+sfc:
+  publish:
+    enabled: true
+    mock-endpoint: mock://external-platform/manuscript
