@@ -10,6 +10,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -19,6 +20,12 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleBiz(BizException ex) {
         log.warn("code={}, message={}", ex.getErrorCode().getCode(), ex.getMessage());
         return ApiResponse.failure(ex.getErrorCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ApiResponse<Void> handleMaxUpload(MaxUploadSizeExceededException ex) {
+        log.warn("code={}, message={}", ErrorCode.ASSET_TOO_LARGE.getCode(), ex.getMessage());
+        return ApiResponse.failure(ErrorCode.ASSET_TOO_LARGE, "上传文件超过系统大小限制");
     }
 
     @ExceptionHandler({

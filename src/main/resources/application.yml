@@ -14,6 +14,10 @@ spring:
     name: sfc-flow-test
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 52MB
+      max-request-size: 55MB
 
 management:
   endpoints:
@@ -48,3 +52,6 @@ sfc:
   publish:
     enabled: true
     mock-endpoint: mock://external-platform/manuscript
+  storage:
+    root: ${user.home}${file.separator}.sfc-flow-test${file.separator}storage
+    max-asset-bytes: 52428800

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>详情审核 - 三审制稿件工作台</title>
     <link rel="stylesheet" href="/app.css">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js" referrerpolicy="origin"></script>
 </head>
 <body>
 <div class="topbar">
@@ -26,7 +27,7 @@
                 <div class="card">
                     <h2 id="title" class="title">稿件详情</h2>
                     <p id="meta" class="sub"></p>
-                    <article id="bodyText" style="white-space: pre-wrap; line-height: 1.7;"></article>
+                    <article id="bodyText" class="manuscript-html"></article>
                 </div>
 
                 <div class="card">
@@ -84,7 +85,15 @@
         detail = await api(`/api/v1/manuscripts/${id}`);
         qs("#title").textContent = detail.title;
         qs("#meta").innerHTML = `状态：${statusBadge(detail.status)} 更新时间：${fmtDate(detail.updatedAt)}`;
-        qs("#bodyText").textContent = detail.body;
+        const raw = detail.body || "";
+        const clean = window.DOMPurify
+            ? window.DOMPurify.sanitize(raw, {
+                USE_PROFILES: {html: true},
+                ADD_TAGS: ["video", "source"],
+                ADD_ATTR: ["controls", "preload", "poster", "type", "width", "height"]
+            })
+            : raw;
+        qs("#bodyText").innerHTML = clean;
         qs("#currentStatus").innerHTML = `当前状态：${statusBadge(detail.status)}`;
         refreshActions();
     }

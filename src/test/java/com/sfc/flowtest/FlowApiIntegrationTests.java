@@ -1,8 +1,10 @@
 package com.sfc.flowtest;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,10 +18,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.Base64;
 import java.util.UUID;
 
 import static org.mockito.Mockito.atLeastOnce;
@@ -29,6 +33,9 @@ import static org.mockito.Mockito.verify;
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 class FlowApiIntegrationTests {
+
+    private static final byte[] ONE_PIXEL_PNG = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
 
     @Autowired
     private MockMvc mockMvc;
@@ -187,6 +194,42 @@ class FlowApiIntegrationTests {
                 .andExpect(jsonPath("$.code").value("0"))
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].id").value(id));
+    }
+
+    @Test
+    void uploadAssetWorksInDraftAndServesBinary() throws Exception {
+        long id = create("素材上传稿件", "<p>正文含图</p>");
+        MockMultipartFile file = new MockMultipartFile("file", "pixel.png", "image/png", ONE_PIXEL_PNG);
+        MvcResult upload = mockMvc.perform(multipart("/api/v1/manuscripts/{id}/assets", id).file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("0"))
+                .andExpect(jsonPath("$.data.url").isString())
+                .andExpect(jsonPath("$.data.location").isString())
+                .andReturn();
+        long assetId = objectMapper.readTree(upload.getResponse().getContentAsString()).path("data").path("id").asLong();
+        mockMvc.perform(get("/api/v1/manuscripts/assets/{assetId}", assetId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.IMAGE_PNG));
+    }
+
+    @Test
+    void uploadAssetRejectedWhenNotEditable() throws Exception {
+        long id = create("不可上传素材稿件", "<p>正文</p>");
+        mockMvc.perform(post("/api/v1/manuscripts/{id}/submit", id))
+                .andExpect(status().isOk());
+        MockMultipartFile file = new MockMultipartFile("file", "pixel.png", "image/png", ONE_PIXEL_PNG);
+        mockMvc.perform(multipart("/api/v1/manuscripts/{id}/assets", id).file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("40003"));
+    }
+
+    @Test
+    void uploadAssetRejectsUnsupportedMime() throws Exception {
+        long id = create("非法类型素材", "<p>正文</p>");
+        MockMultipartFile file = new MockMultipartFile("file", "x.bin", "application/octet-stream", new byte[]{1, 2, 3});
+        mockMvc.perform(multipart("/api/v1/manuscripts/{id}/assets", id).file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("40007"));
     }
 
     private long create(String title, String body) throws Exception {

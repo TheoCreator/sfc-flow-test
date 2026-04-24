@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS ms_review_record;
+DROP TABLE IF EXISTS ms_manuscript_asset;
 DROP TABLE IF EXISTS ms_manuscript;
 
 CREATE TABLE ms_manuscript (
@@ -12,6 +13,19 @@ CREATE TABLE ms_manuscript (
 );
 
 CREATE INDEX idx_ms_manuscript_status_updated ON ms_manuscript(status, updated_at);
+
+CREATE TABLE ms_manuscript_asset (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    manuscript_id BIGINT NOT NULL,
+    storage_object_key VARCHAR(191) NOT NULL,
+    original_filename VARCHAR(500) NOT NULL,
+    content_type VARCHAR(128) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT fk_ms_asset_manuscript FOREIGN KEY (manuscript_id) REFERENCES ms_manuscript(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_ms_asset_manuscript ON ms_manuscript_asset(manuscript_id);
 
 CREATE TABLE ms_review_record (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

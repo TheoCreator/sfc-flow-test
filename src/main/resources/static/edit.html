@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>稿件编辑 - 三审制稿件工作台</title>
     <link rel="stylesheet" href="/app.css">
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js" referrerpolicy="origin"></script>
 </head>
 <body>
 <div class="topbar">
@@ -24,7 +25,7 @@
         <div class="main-pane row">
             <section class="card col-main">
                 <h2 class="title">稿件编辑</h2>
-                <p class="sub">支持标题/正文编辑、保存草稿、提交审核、退回后重新提交。</p>
+                <p class="sub">富文本编辑；图片与视频先上传至服务器后再插入正文。新建稿件请先点「创建」获得稿件 ID 后再插入素材。</p>
                 <div id="msg"></div>
 
                 <label>标题</label>
@@ -70,6 +71,32 @@
         return status === "DRAFT" || status === "REJECTED";
     }
 
+    function setEditorReadonly(locked) {
+        const ed = tinymce.get("body");
+        if (ed) {
+            ed.mode.set(locked ? "readonly" : "design");
+        }
+    }
+
+    function editorHtml() {
+        const ed = tinymce.get("body");
+        let html = ed ? ed.getContent() : (qs("#body").value || "");
+        html = (html || "").trim();
+        if (!html) {
+            html = "<p><br></p>";
+        }
+        return html;
+    }
+
+    function setEditorHtml(html) {
+        const ed = tinymce.get("body");
+        if (ed) {
+            ed.setContent(html || "<p><br></p>");
+        } else {
+            qs("#body").value = html || "";
+        }
+    }
+
     function refreshButtons() {
         const status = current ? current.status : null;
         qs("#btnCreate").style.display = id ? "none" : "inline-block";
@@ -79,13 +106,13 @@
         qs("#btnDetail").style.display = id ? "inline-block" : "none";
         const locked = id && !editable(status);
         qs("#title").disabled = locked;
-        qs("#body").disabled = locked;
+        setEditorReadonly(locked);
     }
 
     function fill(data) {
         current = data;
         qs("#title").value = data.title || "";
-        qs("#body").value = data.body || "";
+        setEditorHtml(data.body || "");
         qs("#statusWrap").innerHTML = `当前状态：${statusBadge(data.status)}`;
         refreshButtons();
     }
@@ -108,9 +135,83 @@
     function payload() {
         return {
             title: qs("#title").value.trim(),
-            body: qs("#body").value.trim()
+            body: editorHtml()
         };
     }
+
+    async function bootEditor() {
+        await tinymce.init({
+            selector: "#body",
+            height: 420,
+            menubar: false,
+            branding: false,
+            promotion: false,
+            license_key: "gpl",
+            base_url: "https://cdn.jsdelivr.net/npm/tinymce@7",
+            suffix: ".min",
+            plugins: "lists link image media autoresize code table",
+            toolbar: "undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image media | table code removeformat",
+            resize: true,
+            autoresize_bottom_margin: 24,
+            content_style: "body{font-family:Microsoft YaHei,PingFang SC,Helvetica Neue,Arial,sans-serif;font-size:15px;line-height:1.7;}",
+            images_upload_handler: (blobInfo, progress) => new Promise((resolve, reject) => {
+                if (!id) {
+                    reject(new Error("请先创建稿件后再插入图片素材"));
+                    return;
+                }
+                const fd = new FormData();
+                fd.append("file", blobInfo.blob(), blobInfo.filename());
+                fetch(`/api/v1/manuscripts/${id}/assets`, {method: "POST", body: fd})
+                    .then(r => r.json().then(j => ({ok: r.ok, j})))
+                    .then(({ok, j}) => {
+                        if (!ok || j.code !== "0") {
+                            throw new Error(j.message || "上传失败");
+                        }
+                        resolve(j.data.location);
+                    })
+                    .catch(reject);
+            }),
+            file_picker_callback: (callback, value, meta) => {
+                if (meta.filetype !== "media") {
+                    return;
+                }
+                if (!id) {
+                    showMessage(msg, false, "请先创建稿件后再插入视频素材");
+                    return;
+                }
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
+                input.onchange = async () => {
+                    const file = input.files && input.files[0];
+                    if (!file) {
+                        return;
+                    }
+                    const fd = new FormData();
+                    fd.append("file", file);
+                    try {
+                        const res = await fetch(`/api/v1/manuscripts/${id}/assets`, {method: "POST", body: fd});
+                        const json = await res.json();
+                        if (!res.ok || json.code !== "0") {
+                            throw new Error(json.message || "上传失败");
+                        }
+                        callback(json.data.location, {title: file.name});
+                    } catch (e) {
+                        showMessage(msg, false, e.message);
+                    }
+                };
+                input.click();
+            }
+        });
+    }
+
+    (async () => {
+        await bootEditor();
+        if (!id) {
+            setEditorHtml("<p><br></p>");
+        }
+        await loadDetail();
+    })();
 
     qs("#btnCreate").addEventListener("click", async () => {
         try {
@@ -164,8 +265,6 @@
 
     qs("#btnBack").addEventListener("click", () => location.href = `/list.html?module=${currentModule}`);
     qs("#btnDetail").addEventListener("click", () => location.href = `/detail.html?id=${id}&module=${currentModule}`);
-
-    loadDetail();
 </script>
 </body>
 </html>

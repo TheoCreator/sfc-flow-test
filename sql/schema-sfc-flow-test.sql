@@ -29,6 +29,24 @@ CREATE TABLE IF NOT EXISTS ms_manuscript (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='稿件';
 
 -- ---------------------------------------------------------------------------
+-- 稿件素材（富文本中引用的图片/视频等二进制文件元数据）
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ms_manuscript_asset (
+    id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+    manuscript_id      BIGINT UNSIGNED NOT NULL COMMENT '稿件ID',
+    storage_object_key   VARCHAR(191)    NOT NULL COMMENT '对象键：稿件目录下文件名',
+    original_filename    VARCHAR(500)    NOT NULL COMMENT '原始文件名',
+    content_type         VARCHAR(128)    NOT NULL COMMENT 'MIME 类型',
+    size_bytes           BIGINT UNSIGNED NOT NULL COMMENT '字节大小',
+    created_at           DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_ms_asset_manuscript (manuscript_id),
+    CONSTRAINT fk_ms_asset_manuscript
+        FOREIGN KEY (manuscript_id) REFERENCES ms_manuscript (id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='稿件素材';
+
+-- ---------------------------------------------------------------------------
 -- 审核与操作流水（通过/退回/提交/保存草稿/重新提交等统一落痕）
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ms_review_record (
